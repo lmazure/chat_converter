@@ -1,26 +1,69 @@
 import json
-from datetime import datetime
 import os
 import sys
 import argparse
+from html import escape
+import base64
+from pathlib import Path
 
-def convert_chat_to_html(json_data):
-    """
-    Convert Google Chat JSON data to formatted HTML
-    
-    Args:
-        json_data (str): JSON string containing chat data
-        
-    Returns:
-        str: Formatted HTML string
-    """
+def convert_chat_to_html(dir, json_data):
+
     # Parse JSON data
     try:
         chat_data = json.loads(json_data)
     except json.JSONDecodeError:
         return "Error: Invalid JSON data"
+
     
-    # HTML template
+    # Process each message
+    records = []
+
+    for message in chat_data.get('messages', []):
+        state = message.get('message_state', '')
+        timestamp = message.get('created_date', '')
+        author = message.get('creator', {}).get('name', 'Unknown')
+        content = message.get('text', '')
+        id = message.get('message_id', '')
+        id_parts = id.split('/')
+        if id_parts[1] == id_parts[2]:
+            parent_id = None
+            message_id = id_parts[1]
+        else:
+            parent_id = id_parts[1]
+            message_id = id_parts[2]
+
+        if state == 'DELETED':
+            message_html += '<div class="message"><span class="sender">deleted message</span></div>'
+        else:  
+            message_html = f"""
+            <div class="message">
+                {"→ " if parent_id is not None else ""}
+                <span class="sender">{escape(author)}</span> - <span class="timestamp">{escape(timestamp)}</span>
+                <div class="content">{escape(content).replace('\n', '<br>')}</div>
+            """
+            
+        # Handle attachments if present
+        attachments = message.get('attached_files', [])
+        if attachments:
+            for attachment in attachments:
+                attach = attachment.get("export_name", "Unknown file")
+                message_html += f'<a class="attachment" href="">📎 Attachment: {attach}</a>'
+                if attach.endswith('.png'):
+                    file_name = attach.replace('.png', '')[0:47] + ".png"
+                    file_path = os.path.join(dir, file_name)
+                    with open(file_path, 'rb') as image_file:
+                        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+                    message_html += f'<img src="data:image/png;base64,{encoded_image}" alt="Embedded Image"'
+                if attach.endswith('.jpg'):
+                    file_name = attach.replace('.jpg', '')[0:47] + ".jpg"
+                    file_path = os.path.join(dir, file_name)
+                    with open(file_path, 'rb') as image_file:
+                        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+                    message_html += f'<img src="data:image/jpg;base64,{encoded_image}" alt="Embedded Image"'
+        message_html += "</div>"
+        records.append({ 'id': message_id, 'parent': parent_id, 'message': message_html })
+    
+        # HTML template
     html_output = """
     <!DOCTYPE html>
     <html>
@@ -41,28 +84,14 @@ def convert_chat_to_html(json_data):
         <div class="chat-container">
     """
     
-    # Process each message
-    for message in chat_data.get('messages', []):
-        timestamp = message.get('created_date', '')
-        author = message.get('creator', {}).get('name', 'Unknown')
-        content = message.get('text', '')
-        id = message.get('message_id', '')
-        
-        message_html = f"""
-        <div class="message">
-            <span class="sender">{author}</span> - <span class="timestamp">{timestamp}</span>
-            <div class="content">{content}</div>
-        """
-        
-        # Handle attachments if present
-        attachments = message.get('attached_files', [])
-        if attachments:
-            for attachment in attachments:
-                message_html += f'<a class="attachment" href="">📎 Attachment: {attachment.get("export_name", "Unknown file")}</a>'
-        
-        message_html += "</div>"
-        html_output += message_html
-    
+    # Add messages to HTML output
+    for record in records:
+        if record['parent'] is None:
+            html_output += record['message']
+            for subrecord in records:
+                if subrecord['parent'] == record['id']:
+                    html_output += subrecord['message']
+
     # Close HTML tags
     html_output += """
         </div>
@@ -95,7 +124,7 @@ def main():
             json_data = f.read()
         
         # Convert to HTML
-        html_content = convert_chat_to_html(json_data)
+        html_content = convert_chat_to_html(args.directory, json_data)
         
         # Write HTML file to current directory
         with open(output_path, 'w', encoding='utf-8') as f:
