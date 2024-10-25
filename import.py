@@ -88,6 +88,12 @@ def convert_chat_to_html(dir, json_data):
                         encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
                     message_html += f'<img src="data:image/jpg;base64,{encoded_image}">'
 
+                if attach_ext.lower() == '.log':
+                    file_path = os.path.join(dir, attach)
+                    with open(file_path, 'r', encoding='utf-8') as log_file:
+                        log_content = log_file.read()
+                    message_html += f'<details><summary>File content</summary><pre>{escape(log_content).replace('\n', '<br>')}</pre></details>'
+
         message_html += "</div>"
 
         records.append({ 'id': message_id, 'parent': parent_id, 'message': message_html })
