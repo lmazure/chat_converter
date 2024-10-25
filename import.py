@@ -63,23 +63,27 @@ def convert_chat_to_html(dir, json_data):
                     attachment_count[attach] = 0
 
                 # Append count if necessary
+                attach_name, attach_ext = os.path.splitext(attach)
                 if attachment_count[attach] > 0:
-                    attach_name, attach_ext = os.path.splitext(attach)
                     if attachment_count[attach] > 0:
-                        attach = f"{attach_name}({attachment_count[attach]}){attach_ext}"
+                        attach_name = f"{attach_name}({attachment_count[attach]})"
+                        attach = f"{attach_name}{attach_ext}"
                 
-                message_html += f'    <a class="attachment" href="">📎 Attachment: {attach}</a><br>'
+                # trunacte loog file names
+                if len(attach) > 48:
+                    attach_name = attach_name[0:47]
+                    attach = attach_name + attach_ext
+
+                message_html += f'    <div class="attachment">📎 Attachment: {attach}</div>'
                 
-                if attach.endswith('.png'):
-                    file_name = attach.replace('.png', '')[0:47] + ".png"
-                    file_path = os.path.join(dir, file_name)
+                if attach_ext.lower() == '.png':
+                    file_path = os.path.join(dir, attach)
                     with open(file_path, 'rb') as image_file:
                         encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
                     message_html += f'<img src="data:image/png;base64,{encoded_image}">'
 
-                if attach.endswith('.jpg'):
-                    file_name = attach.replace('.jpg', '')[0:47] + ".jpg"
-                    file_path = os.path.join(dir, file_name)
+                if attach_ext.lower() == '.jpg':
+                    file_path = os.path.join(dir, attach)
                     with open(file_path, 'rb') as image_file:
                         encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
                     message_html += f'<img src="data:image/jpg;base64,{encoded_image}">'
@@ -102,7 +106,7 @@ def convert_chat_to_html(dir, json_data):
             .reaction { color: #666; font-size: 0.8em; }
             .timestamp { color: #666; font-size: 0.8em; }
             .content { margin-top: 5px; }
-            .attachment { margin-top: 5px; color: #0066cc; }
+            .attachment { margin-top: 5px; color: #8B0000; }
         </style>
     </head>
     <body>
