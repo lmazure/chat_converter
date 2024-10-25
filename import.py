@@ -17,6 +17,7 @@ def convert_chat_to_html(dir, json_data):
     
     # Process each message
     records = []
+    attachment_count = {}
 
     for message in chat_data.get('messages', []):
         state = message.get('message_state', '')
@@ -41,25 +42,48 @@ def convert_chat_to_html(dir, json_data):
                 <span class="sender">{escape(author)}</span> - <span class="timestamp">{escape(timestamp)}</span>
                 <div class="content">{escape(content).replace('\n', '<br>')}</div>
             """
-            
-        # Handle attachments if present
+
+        # Process reactions
+        reactions = message.get('reactions', [])
+        for reaction in reactions:
+            emoji = reaction.get('emoji', {}).get('unicode', '')
+            reactors = ', '.join(reaction.get('reactor_emails', []))
+            message_html += f'<div class="reaction">{emoji} {reactors}</div>'
+
+        # Process attachments
         attachments = message.get('attached_files', [])
         if attachments:
             for attachment in attachments:
                 attach = attachment.get("export_name", "Unknown file")
+                
+                # Check and update the count of the attachment
+                if attach in attachment_count:
+                    attachment_count[attach] += 1
+                else:
+                    attachment_count[attach] = 0
+
+                # Append count if necessary
+                if attachment_count[attach] > 0:
+                    attach_name, attach_ext = os.path.splitext(attach)
+                    if attachment_count[attach] > 0:
+                        attach = f"{attach_name}({attachment_count[attach]}){attach_ext}"
+                
                 message_html += f'    <a class="attachment" href="">📎 Attachment: {attach}</a><br>'
+                
                 if attach.endswith('.png'):
                     file_name = attach.replace('.png', '')[0:47] + ".png"
                     file_path = os.path.join(dir, file_name)
                     with open(file_path, 'rb') as image_file:
                         encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
                     message_html += f'<img src="data:image/png;base64,{encoded_image}">'
+
                 if attach.endswith('.jpg'):
                     file_name = attach.replace('.jpg', '')[0:47] + ".jpg"
                     file_path = os.path.join(dir, file_name)
                     with open(file_path, 'rb') as image_file:
                         encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
                     message_html += f'<img src="data:image/jpg;base64,{encoded_image}">'
+
         message_html += "</div>"
 
         records.append({ 'id': message_id, 'parent': parent_id, 'message': message_html })
@@ -75,6 +99,7 @@ def convert_chat_to_html(dir, json_data):
             body { font-family: Arial, sans-serif; margin: 0 auto; padding: 20px; }
             .message { margin: 10px 0; padding: 10px; border-radius: 5px; }
             .sender { font-weight: bold; margin-bottom: 5px; }
+            .reaction { color: #666; font-size: 0.8em; }
             .timestamp { color: #666; font-size: 0.8em; }
             .content { margin-top: 5px; }
             .attachment { margin-top: 5px; color: #0066cc; }
