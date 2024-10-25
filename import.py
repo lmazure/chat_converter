@@ -47,23 +47,24 @@ def convert_chat_to_html(dir, json_data):
         if attachments:
             for attachment in attachments:
                 attach = attachment.get("export_name", "Unknown file")
-                message_html += f'<a class="attachment" href="">📎 Attachment: {attach}</a>'
+                message_html += f'    <a class="attachment" href="">📎 Attachment: {attach}</a><br>'
                 if attach.endswith('.png'):
                     file_name = attach.replace('.png', '')[0:47] + ".png"
                     file_path = os.path.join(dir, file_name)
                     with open(file_path, 'rb') as image_file:
                         encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
-                    message_html += f'<img src="data:image/png;base64,{encoded_image}" alt="Embedded Image"'
+                    message_html += f'<img src="data:image/png;base64,{encoded_image}">'
                 if attach.endswith('.jpg'):
                     file_name = attach.replace('.jpg', '')[0:47] + ".jpg"
                     file_path = os.path.join(dir, file_name)
                     with open(file_path, 'rb') as image_file:
                         encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
-                    message_html += f'<img src="data:image/jpg;base64,{encoded_image}" alt="Embedded Image"'
+                    message_html += f'<img src="data:image/jpg;base64,{encoded_image}">'
         message_html += "</div>"
+
         records.append({ 'id': message_id, 'parent': parent_id, 'message': message_html })
     
-        # HTML template
+    # HTML template
     html_output = """
     <!DOCTYPE html>
     <html>
@@ -71,7 +72,7 @@ def convert_chat_to_html(dir, json_data):
         <meta charset="UTF-8">
         <title>Chat History</title>
         <style>
-            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+            body { font-family: Arial, sans-serif; margin: 0 auto; padding: 20px; }
             .message { margin: 10px 0; padding: 10px; border-radius: 5px; }
             .sender { font-weight: bold; margin-bottom: 5px; }
             .timestamp { color: #666; font-size: 0.8em; }
